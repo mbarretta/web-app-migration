@@ -1,5 +1,4 @@
-# Use Node 23.10.0 as the base image
-FROM node:23.10.0
+FROM node:24
 
 # Set the working directory
 WORKDIR /usr/src/app

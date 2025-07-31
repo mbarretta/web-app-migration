@@ -1,10 +1,10 @@
-const express = require('express');
-const { exec } = require('child_process');
+const express = require("express");
+const { execSync } = require("child_process");
 const app = express();
 const port = 3000;
 
 // Main page: displays a digital clock, the image being scanned, a button to trigger the scan, and vulnerability metrics.
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   const html = `
   <!DOCTYPE html>
   <html>
@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
         text-align: center;
         margin: 0;
         padding: 0;
-        background: #9370DB; /* Darker lavender */
+        background: #6CEEFD;
         height: 100vh;
         display: flex;
         align-items: center;
@@ -44,41 +44,39 @@ app.get('/', (req, res) => {
         cursor: pointer;
         border: none;
         border-radius: 5px;
-        background-color: #007bff;
+        background-color: #10002E;
         color: #fff;
       }
       button:hover {
-        background-color: #0056b3;
+        background-color: #2723F1;
+      }
+      #vuln p {
+        text-align: left;
       }
     </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Let's scan some containers!</h1>
-      <p id="time">Loading time...</p>
-      <p id="image">Scanning image from Docker Hub: node:23.10.0</p>
-      <button id="scanButton">Scan for Vulnerabilities</button>
-      <p id="vuln">Vulnerability metrics will appear here.</p>
-    </div>
     <script>
       // Update the clock every second
       function updateTime() {
         const now = new Date();
         document.getElementById('time').textContent = now.toLocaleTimeString();
       }
-      setInterval(updateTime, 1000);
-      updateTime();
 
       // Function to perform the vulnerability scan
       function runScan() {
-        document.getElementById('vuln').textContent = 'Scanning for vulnerability metrics...';
+        document.getElementById('vuln').textContent = 'Scanning for vulnerability metrics with grype...';
         fetch('/vulnerabilities')
           .then(response => response.json())
           .then(data => {
-            document.getElementById('vuln').textContent =
-              'Total CVEs: ' + data.total +
-              ', Critical: ' + data.critical +
-              ', High: ' + data.high;
+            document.getElementById('vuln').textContent = "";
+            data.forEach(item => {
+              p = document.createElement("p");
+              p.textContent =
+                item.image +
+                " ==> Total CVEs: " + item.results.total +
+                ", Critical: " + item.results.critical +
+                ", High: " + item.results.high;
+              document.getElementById('vuln').appendChild(p);
+            });
           })
           .catch(err => {
             console.error(err);
@@ -86,9 +84,23 @@ app.get('/', (req, res) => {
           });
       }
 
-      // Add click event to the scan button
-      document.getElementById('scanButton').addEventListener('click', runScan);
+      window.onload = function() {
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Add click event to the scan button
+        document.getElementById('scanButton').addEventListener('click', runScan);
+      }
     </script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Let's scan some containers!</h1>
+      <p id="time">Loading time...</p>
+      <p id="image">Scanning Docker Hub images: node, postgres, nginx</p>
+      <button id="scanButton">Run Vulnerability Scan</button>
+      <p id="vuln"></p>
+    </div>
   </body>
   </html>
   `;
@@ -96,28 +108,27 @@ app.get('/', (req, res) => {
 });
 
 // Vulnerability endpoint: scan the base image "node:23.10.0" using Grype with jq for metrics.
-app.get('/vulnerabilities', (req, res) => {
-  const command = `grype node:23.10.0 --output json | jq '{total: (.matches | length), critical: (.matches | map(select(.vulnerability.severity=="Critical")) | length), high: (.matches | map(select(.vulnerability.severity=="High")) | length)}'`;
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error('Grype error:', stderr);
-      return res.status(500).json({ error: stderr || 'Unknown grype error' });
-    }
-    const trimmedOutput = stdout.trim();
-    if (!trimmedOutput) {
-      console.error("Empty output from grype command");
-      return res.status(500).json({ error: 'Empty grype output' });
-    }
-    try {
-      const result = JSON.parse(trimmedOutput);
-      res.json(result);
-    } catch (e) {
-      console.error('Parsing error:', e);
-      res.status(500).json({ error: 'Failed to parse grype output' });
-    }
-  });
+app.get("/vulnerabilities", (req, res) => {
+  node_result = runScan("node:24");
+  nginx_result = runScan("nginx:1.29");
+  postgres_result = runScan("postgres:17");
+  try {
+    const result = JSON.parse(
+      `[${node_result}, ${nginx_result}, ${postgres_result}]`,
+    );
+    res.json(result);
+  } catch (e) {
+    console.error("Parsing error:", e);
+    res.status(500).json({ error: "Failed to parse grype output" });
+  }
 });
 
 app.listen(port, () => {
   console.log("App listening on port " + port);
 });
+
+const runScan = function (image) {
+  console.log("Running scan for image:", image);
+  const command = `grype ${image} --output json | jq '{image: "${image}", results: {total: (.matches | length), critical: (.matches | map(select(.vulnerability.severity=="Critical")) | length), high: (.matches | map(select(.vulnerability.severity=="High")) | length)}}'`;
+  return execSync(command).toString();
+};
