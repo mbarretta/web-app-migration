@@ -1,5 +1,5 @@
 # Use Node 23.10.0 as the base image
-FROM cgr.dev/chainguard-private/node:23.10.0-dev
+FROM cgr.dev/chainguard-private/node-fips:latest-dev
 USER 0
 # Set the working directory
 WORKDIR /usr/src/app
@@ -9,7 +9,7 @@ COPY package*.json ./
 RUN npm install
 
 # Install Grype and jq (jq is needed to parse Grype output)
-RUN apk update && apk add --no-cache jq grype
+RUN apk update && apk add --no-cache jq grype docker
 
 # Install Grype vulnerability scanner
 # RUN curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin

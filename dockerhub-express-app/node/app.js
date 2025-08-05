@@ -10,7 +10,7 @@ app.get("/", (req, res) => {
   <html>
   <head>
     <meta charset="UTF-8">
-    <title>Cool Web UI with CVE Metrics</title>
+    <title>Chainguard Scanning Demo</title>
     <style>
       body {
         font-family: sans-serif;
@@ -53,6 +53,20 @@ app.get("/", (req, res) => {
       #vuln p {
         text-align: left;
       }
+      div#vuln div {
+          display: inline;
+          width: 200px;
+          border: 1px solid black;
+          margin: 0px 10px 0px 10px;
+          background-color: #73ff8f;
+      }
+      div#vuln {
+          display: flex;
+          justify-content: center;
+      }
+      div#vuln a {
+          font-size: 1.2em;
+      }
     </style>
     <script>
       // Update the clock every second
@@ -69,13 +83,23 @@ app.get("/", (req, res) => {
           .then(data => {
             document.getElementById('vuln').textContent = "";
             data.forEach(item => {
-              p = document.createElement("p");
-              p.textContent =
-                item.image +
-                " ==> Total CVEs: " + item.results.total +
-                ", Critical: " + item.results.critical +
-                ", High: " + item.results.high;
-              document.getElementById('vuln').appendChild(p);
+
+              div = document.createElement("div");
+              span = document.createElement("span");
+              p_total = document.createElement("p");
+              p_critical = document.createElement("p");
+              p_high = document.createElement("p");
+
+              span.textContent = item.name + ":latest";
+              p_total.textContent = "Total CVEs: " + item.results.total;
+              p_critical.textContent = "Critical: " + item.results.critical;
+              p_high.textContent = "High: " + item.results.high;
+
+              div.appendChild(span);
+              div.appendChild(p_total);
+              div.appendChild(p_critical);
+              div.appendChild(p_high);
+              document.getElementById('vuln').appendChild(div);
             });
           })
           .catch(err => {
@@ -99,7 +123,7 @@ app.get("/", (req, res) => {
       <p id="time">Loading time...</p>
       <p id="image">Scanning Docker Hub images: node, postgres, nginx</p>
       <button id="scanButton">Run Vulnerability Scan</button>
-      <p id="vuln"></p>
+      <div id="vuln"></div>
     </div>
   </body>
   </html>
@@ -107,15 +131,17 @@ app.get("/", (req, res) => {
   res.send(html);
 });
 
-// Vulnerability endpoint: scan the base image "node:23.10.0" using Grype with jq for metrics.
+// Vulnerability endpoint: scan images using Grype with jq for metrics.
 app.get("/vulnerabilities", (req, res) => {
-  node_result = runScan("node:24");
-  nginx_result = runScan("nginx:1.29");
-  postgres_result = runScan("postgres:17");
+  req.setTimeout(600000);
+  node_result = runScan("node:latest");
+  nginx_result = runScan("nginx:latest");
+  postgres_result = runScan("postgres:latest");
   try {
     const result = JSON.parse(
       `[${node_result}, ${nginx_result}, ${postgres_result}]`,
     );
+    console.log(result);
     res.json(result);
   } catch (e) {
     console.error("Parsing error:", e);
@@ -129,6 +155,6 @@ app.listen(port, () => {
 
 const runScan = function (image) {
   console.log("Running scan for image:", image);
-  const command = `grype ${image} --output json | jq '{image: "${image}", results: {total: (.matches | length), critical: (.matches | map(select(.vulnerability.severity=="Critical")) | length), high: (.matches | map(select(.vulnerability.severity=="High")) | length)}}'`;
+  const command = `grype ${image}  --output json | jq '{image: "${image}", results: {total: (.matches | length), critical: (.matches | map(select(.vulnerability.severity=="Critical")) | length), high: (.matches | map(select(.vulnerability.severity=="High")) | length)}}'`;
   return execSync(command).toString();
 };
