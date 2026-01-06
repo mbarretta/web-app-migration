@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
         margin-bottom: 0.5em;
       }
       p {
-        font-size: 1.2em;
+        font-size: 12pt;
         margin: 0.5em;
       }
       button {
@@ -64,7 +64,7 @@ app.get("/", (req, res) => {
           display: flex;
           justify-content: center;
       }
-      div#vuln a {
+      div#vuln span {
           font-size: 1.2em;
       }
     </style>
@@ -90,7 +90,7 @@ app.get("/", (req, res) => {
               p_critical = document.createElement("p");
               p_high = document.createElement("p");
 
-              span.textContent = item.name + ":latest";
+              span.textContent = item.image;
               p_total.textContent = "Total CVEs: " + item.results.total;
               p_critical.textContent = "Critical: " + item.results.critical;
               p_high.textContent = "High: " + item.results.high;

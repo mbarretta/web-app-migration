@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
         margin-bottom: 0.5em;
       }
       p {
-        font-size: 1.2em;
+        font-size: 12pt;
         margin: 0.5em;
       }
       button {
